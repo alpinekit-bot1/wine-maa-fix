@@ -40,3 +40,15 @@
   - `/opt/maa-desktop/config/MAA-linux`
   - `/opt/maa-desktop/config/.config/autostart/maa.desktop`
   - `/opt/maa-desktop/config/.config/maa`
+
+## 2026-08-21 从零重建后现状
+- 镜像：`maa-desktop:v2`（已 commit，compose 已改用 `image: maa-desktop:v2`）
+- Wine：WineHQ Staging 11.15（apt 安装），已替换 patched `winex11.so`
+- Wine 补丁：`client-input.patch` + `skip-hidden.patch`（仓库 patches/ 下）
+- 关键修复：
+  - 必须生成 `zh_CN.UTF-8` locale，否则 MAA 中文资源文件名乱码、`AsstLoadResource ret: false`
+  - patched winex11 后“公告”窗口可成为鼠标目标；但 WPF 仍不消费鼠标消息
+  - **可用全局热键启动任务**：`DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l` 触发 LinkStart
+- MAA 位置：`/home/headless/MaaAssistantArknights/MAA.exe`
+- 启动脚本：`/home/headless/bin/maa.sh`；桌面快捷方式：`/home/headless/Desktop/MAA.desktop`
+- 详细步骤：仓库 `docs/SETUP_FROM_ZERO.md`
