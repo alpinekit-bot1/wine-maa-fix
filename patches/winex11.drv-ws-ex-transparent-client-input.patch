@@ -1,0 +1,32 @@
+--- a/dlls/winex11.drv/window.c
++++ b/dlls/winex11.drv/window.c
+@@ -527,8 +527,7 @@ static int get_window_attributes( struct x11drv_win_data *data, XSetWindowAttributes *attr )
+     attr->background_pixel  = 0;
+     attr->event_mask        = (ExposureMask | KeyPressMask | KeyReleaseMask |
+                                FocusChangeMask | KeymapStateMask | StructureNotifyMask | PropertyChangeMask);
+-    /* for transparent windows, exclude mouse events to allow mouse pass-through */
+-    if (!(ex_style & WS_EX_TRANSPARENT)) attr->event_mask |= (PointerMotionMask | ButtonPressMask |
+-                                                              ButtonReleaseMask | EnterWindowMask);
++    attr->event_mask        |= (PointerMotionMask | ButtonPressMask |
++                                ButtonReleaseMask | EnterWindowMask);
+ 
+     return (CWSaveUnder | CWColormap | CWBorderPixel | CWBackPixel |
+             CWEventMask | CWBitGravity | CWBackingStore);
+@@ -548,17 +547,20 @@ static void sync_window_input_shape( struct x11drv_win_data *data )
+ 
+     if (ex_style & WS_EX_TRANSPARENT)
+     {
+-        /* For transparent windows, set an empty input shape to allow mouse pass-through */
+-        static XRectangle empty_rect;
++        /* For transparent windows, keep the client area interactive and only let
++         * transparent margins pass through. */
++        XRectangle rect;
++        rect.x = data->rects.client.left - data->rects.visible.left;
++        rect.y = data->rects.client.top - data->rects.visible.top;
++        rect.width = data->rects.client.right - data->rects.client.left;
++        rect.height = data->rects.client.bottom - data->rects.client.top;
+         XShapeCombineRectangles( data->display, data->whole_window, ShapeInput, 0, 0,
+-                                 &empty_rect, 1, ShapeSet, YXBanded );
++                                 &rect, 1, ShapeSet, YXBanded );
+         TRACE( "window %p/%lx set empty input shape for WS_EX_TRANSPARENT\n",
+                data->hwnd, data->whole_window );

@@ -55,3 +55,16 @@ this fix. Recreate the container to pick up the fixed Wine:
 cd /opt/maa-desktop
 docker compose up -d --force-recreate
 ```
+
+## Additional custom patch for MAA dialog interactivity
+
+Wine's upstream !8597 sets an *empty* input shape for every `WS_EX_TRANSPARENT`
+window. That makes fully transparent overlays click-through correctly, but it also
+makes WPF dialogs that use `WS_EX_TRANSPARENT` (like MAA's announcement) unable to
+receive mouse wheel/button events inside their visible client area.
+
+`patches/winex11.drv-ws-ex-transparent-client-input.patch` changes the behavior:
+- mouse event masks are always enabled on the whole window;
+- for `WS_EX_TRANSPARENT` windows the input shape is set to the **client rectangle**
+  instead of empty, so transparent margins pass through while the actual dialog
+  content remains interactive.
