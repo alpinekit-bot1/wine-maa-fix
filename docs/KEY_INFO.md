@@ -47,8 +47,9 @@
 - Wine 补丁：`client-input.patch` + `skip-hidden.patch`（仓库 patches/ 下）
 - 关键修复：
   - 必须生成 `zh_CN.UTF-8` locale，否则 MAA 中文资源文件名乱码、`AsstLoadResource ret: false`
-  - patched winex11 后“公告”窗口可成为鼠标目标；但 WPF 仍不消费鼠标消息
-  - **可用全局热键启动任务**：`DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l` 触发 LinkStart
+  - patched winex11 后“公告”窗口可成为鼠标目标
+  - **鼠标修复关键**：MAA 配置 `config/gui.new.json` 中 `Gui.UseNotify=false`，关闭桌面通知/ToastWindow 后，主窗口鼠标可正常点击
+  - **可用全局热键启动任务**：`DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l` 触发 LinkStart（备份方案）
 - MAA 位置：`/home/headless/MaaAssistantArknights/MAA.exe`
 - 启动脚本：`/home/headless/bin/maa.sh`；桌面快捷方式：`/home/headless/Desktop/MAA.desktop`
 - 详细步骤：仓库 `docs/SETUP_FROM_ZERO.md`

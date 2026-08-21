@@ -136,16 +136,39 @@ cp winex11.so winex11.so.stock
 cp /opt/wine-src/build/dlls/winex11.drv/winex11.so winex11.so
 ```
 
-## 6. 当前已知状态与可用方案
+## 6. 鼠标输入修复（关键）
 
-- 打补丁后，“公告”窗口已经能成为鼠标指针下的目标窗口：
-  `xdotool getmouselocation` 在公告上时返回公告窗口，而不是主窗口。
-- **但 WPF 仍不消费鼠标消息**：spy 显示 `WM_LBUTTONDOWN` 发给“公告”后直接进
-  `DefWindowProc` 返回 0。这是 Wine + .NET 10 WPF 的 `HwndWrapper` 输入问题，
-  尚未找到 Wine 侧完全修复方案。
-- **可用替代：MAA 全局热键能启动任务**。发送 `Ctrl+Shift+Alt+L` 会触发
-  `LinkStart Enter`，即使公告窗未关闭也能开始执行任务队列。
-  这可以作为长期自动化入口，不修改 MAA 文件。
+之前鼠标无法点击的根因是 **MAA 的桌面通知/ToastWindow 全屏透明覆盖层抢占鼠标输入**，
+而不是 WPF 本身不处理鼠标。
+
+修复方法：在 MAA 配置里关闭桌面通知。
+
+```bash
+python3 - <<'PY'
+import json
+p = "/home/headless/MaaAssistantArknights/config/gui.new.json"
+d = json.load(open(p, encoding="utf-8"))
+d["Gui"]["UseNotify"] = False
+d["Gui"]["LoadWindowPlacement"] = False
+d["Gui"]["SaveWindowPlacement"] = False
+json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+PY
+```
+
+关闭后重启 MAA：
+
+- `ToastWindow` 不再出现；
+- 主窗口可以正常点击、切换页面；
+- 公告窗口也不会再抢占鼠标。
+
+### 备份方案
+
+如果仍想保留桌面通知，官方文档建议在 `winecfg` 中启用**虚拟桌面模式**缓解；
+但我们实测虚拟桌面下鼠标不会正确分发给 MAA 子窗口，所以优先关闭通知。
+
+### 热键备份
+
+即使鼠标正常，全局热键依然可用：
 
 ```bash
 DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l
