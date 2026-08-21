@@ -1,0 +1,16 @@
+--- a/dlls/winex11.drv/window.c
++++ b/dlls/winex11.drv/window.c
+@@ -2859,6 +2859,13 @@ static struct x11drv_win_data *X11DRV_create_win_data( HWND hwnd, const struct window_rects *rects )
+     /* don't create win data for HWND_MESSAGE windows */
+     if (parent != NtUserGetDesktopWindow() && !NtUserGetAncestor( parent, GA_PARENT )) return NULL;
+ 
++    /* Don't create win data for hidden zero-size helper windows
++     * (e.g. .NET BroadcastEventWindow / Default IME / notification shims).
++     * They must not receive pointer or keyboard input. */
++    if (!(NtUserGetWindowLongW( hwnd, GWL_STYLE ) & WS_VISIBLE) &&
++        rects->window.right - rects->window.left <= 1 &&
++        rects->window.bottom - rects->window.top <= 1) return NULL;
++
+     if (NtUserGetWindowThread( hwnd, NULL ) != GetCurrentThreadId()) return NULL;
+ 
+     display = thread_init_display();

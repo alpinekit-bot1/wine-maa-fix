@@ -68,3 +68,14 @@ receive mouse wheel/button events inside their visible client area.
 - for `WS_EX_TRANSPARENT` windows the input shape is set to the **client rectangle**
   instead of empty, so transparent margins pass through while the actual dialog
   content remains interactive.
+
+## Additional patch: skip hidden zero-size helper windows
+
+WPF/.NET creates hidden 1x1 helper windows (e.g. `.NET-BroadcastEventWindow`,
+`Default IME`, notification shims). Under Wine these can receive global pointer
+grabs and swallow all mouse/keyboard input meant for the real MAA UI.
+
+`patches/winex11.drv-skip-hidden-1x1-helper-windows.patch` makes Wine skip
+creating win data / X input windows for hidden zero-size helper windows.
+They are re-created normally when/if the window becomes visible and gets a real
+size.
