@@ -1,55 +1,87 @@
-# MAA 桌面容器关键信息（压缩对话用）
+# MAA 桌面容器关键信息（2026-08-21 压缩对话用）
 
-## 主机/远程
-- 宿主机：Ubuntu 22.04，Docker 29.7.2，8 核 / 16GB / 78GB 磁盘
-- 通过本目录 `./sshx.sh` 执行宿主机命令（自动使用 ed25519 key + askpass）
+## 当前最终状态
+- **MAA 已关闭**，容器 `maa-desktop` 仍在运行。
+- 镜像：`maa-desktop:v2`，`/opt/maa-desktop/docker-compose.yml` 已改用该镜像。
+- VNC/noVNC 正常，端口 `6080`。
+- **鼠标输入已修复**：关闭 MAA 桌面通知后，主窗口可正常点击。
+- GitHub 已更新到 `ac68680`。
+
+## 访问方式
+- 宿主机命令：`./sshx.sh "<命令>"`（自动使用 ed25519 key + askpass）
 - 容器：`maa-desktop`
 - 项目目录：`/opt/maa-desktop/docker-compose.yml`
-- 端口：`6080:6901`（noVNC 网页）、`5901:5901`（VNC）
-- noVNC 地址：`http://<your-host>:6080/vnc.html`
+- 端口：`6080:6901`（noVNC）、`5901:5901`（VNC）
+- noVNC：`http://<your-host>:6080/vnc.html`
 - VNC 密码：`<your-vnc-password>`
 - 桌面用户：`headless`（uid/gid 1001），家目录持久化在 `/opt/maa-desktop/config`
+
+## 关键环境
+- 容器系统：Ubuntu 24.04 (noble)
+- Wine：WineHQ Staging `11.15`（apt 安装）
+- wine-mono：`11.2.0`
+- VC++ Redistributable：已安装到 Wine prefix
+- .NET 8 Desktop Runtime `8.0.30`：已安装到 Wine prefix（用于测试旧版 MAA）
+- 中文字体：Noto CJK、文泉驿正黑、Symbola
+- locale：已生成 `zh_CN.UTF-8`（**必须**，否则 MAA 中文资源加载失败）
+
+## MAA 安装
+- 主用：`/home/headless/MaaAssistantArknights/MAA.exe`（v6.16.8）
+- 备用旧版：`/home/headless/MAA-v5.28.5/MAA.exe`（v5.28.5，已下载，需 .NET 8 运行时）
+- 启动脚本：`/home/headless/bin/maa.sh`
+- 桌面快捷方式：`/home/headless/Desktop/MAA.desktop`
+- 下载目录：`/home/headless/Downloads/`
+
+## 关键技术结论 / 修复
+1. **VNC 从零重建**：空卷必须先复制镜像默认家目录骨架，否则 `vnc_startup` 的 `mkdir` 不带 `-p` 会失败：
+   ```bash
+   docker run --rm --entrypoint /bin/sh accetto/ubuntu-vnc-xfce-g3:latest \
+     -c 'tar -C /home/headless -cf - .' | tar -C /opt/maa-desktop/config -xf -
+   chown -R 1001:1001 /opt/maa-desktop/config
+   ```
+2. **Wine 补丁 winex11.so**：已编译并替换
+   - 路径：`/opt/wine-staging/lib/wine/x86_64-unix/winex11.so`
+   - 原版备份：`/opt/wine-staging/lib/wine/x86_64-unix/winex11.so.stock`
+   - 补丁：`client-input.patch` + `skip-hidden.patch`（仓库 `patches/`）
+3. **鼠标输入修复（最重要）**
+   - 根因：MAA 的桌面通知 `ToastWindow` 是全屏透明覆盖层，会抢占鼠标输入。
+   - 修复：编辑 `/home/headless/MaaAssistantArknights/config/gui.new.json`：
+     ```json
+     "Gui": {
+       "UseNotify": false,
+       "LoadWindowPlacement": false,
+       "SaveWindowPlacement": false
+     }
+     ```
+   - 关闭后重启 MAA，`ToastWindow` 消失，主窗口鼠标可正常点击/切换页面。
+4. **热键备份方案**（鼠标修复前/后都可用）：
+   ```bash
+   DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l
+   ```
+   触发 `LinkStart` 开始任务。
+
+## 常用命令
+```bash
+# 启动 MAA
+docker exec -d -u root maa-desktop bash -c \
+  'runuser -u headless -- env DISPLAY=:1 nohup /home/headless/bin/maa.sh >/tmp/maa.log 2>&1 &'
+
+# 停止 MAA
+docker exec -u root maa-desktop bash -c \
+  'runuser -u headless -- env WINEPREFIX=/home/headless/.wine-maa WINEDEBUG=-all DISPLAY=:1 wineserver -k; pkill -x MAA.exe || true'
+
+# 查看日志
+docker exec maa-desktop tail -n 50 /home/headless/MaaAssistantArknights/debug/gui.log
+```
+
+## 下一步
+- 配置 MAA 的 ADB/模拟器连接（例如 `127.0.0.1:5555` 或备用机地址）。
+- 可做开机自启：把 `MAA.desktop` 放进 `.config/autostart/`，并启动后自动发热键。
+- 旧镜像 `maa-desktop:v1`（6.4GB）可删除释放空间。
+- 完整从零部署步骤见仓库 `docs/SETUP_FROM_ZERO.md`。
 
 ## GitHub 仓库
 - 仓库：`alpinekit-bot1/wine-maa-fix`
 - 地址：https://github.com/alpinekit-bot1/wine-maa-fix
-- 已包含补丁：
-  - `patches/winex11.drv-ws-ex-transparent-shapeinput.patch`（上游 MR !8597）
-  - `patches/winex11.drv-ws-ex-transparent-client-input.patch`（保留弹窗客户端区域可交互）
-  - `patches/winex11.drv-skip-hidden-1x1-helper-windows.patch`（跳过隐藏 1×1 辅助窗口，防止抢输入）
-- 诊断文档：`docs/DIAGNOSIS.md`
-
-## 已深挖到的根因
-- Wine 能正确把 `WM_LBUTTONDOWN` / `WM_MOUSEWHEEL` 发给 MAA“公告”窗口，坐标正确。
-- MAA 窗口非禁用、非卡死、是前台窗口。
-- 但 WPF 的 `HwndWrapper` 窗口过程收到鼠标消息后直接走 `DefWindowProc` 返回 0，即 WPF 输入系统没有接住。
-- 结论：问题在 Wine 对 .NET 10 WPF 的窗口子类化 / `HwndSource` 输入挂钩支持不完整，不是 X 输入路由问题。
-
-## 已做过的尝试与结果
-- Wine Staging 11.15 + wine-mono 11.2.0 + 中文字体 + Symbola：MAA 可启动。
-- 编译替换 winex11.so：隐藏 1×1 窗口可消除，但 WPF 鼠标仍不响应。
-- 手动安装 VC++ Redistributable `vc_redist.x64.exe`：已安装，`vcruntime140.dll`/`msvcp140.dll` 存在，但预计不解决 WPF 鼠标问题。
-- 用户决定：卸掉当前 Wine，从干净桌面镜像重新开始。
-
-## 当前重置决定
-- 将容器从 `maa-desktop:v1`（含 Wine）重置为 `accetto/ubuntu-vnc-xfce-g3:latest`（干净桌面）。
-- 清理卷里 Wine/MAA 相关目录：
-  - `/opt/maa-desktop/config/.wine-maa`
-  - `/opt/maa-desktop/config/MaaAssistantArknights`
-  - `/opt/maa-desktop/config/MAA`
-  - `/opt/maa-desktop/config/MAA-linux`
-  - `/opt/maa-desktop/config/.config/autostart/maa.desktop`
-  - `/opt/maa-desktop/config/.config/maa`
-
-## 2026-08-21 从零重建后现状
-- 镜像：`maa-desktop:v2`（已 commit，compose 已改用 `image: maa-desktop:v2`）
-- Wine：WineHQ Staging 11.15（apt 安装），已替换 patched `winex11.so`
-- Wine 补丁：`client-input.patch` + `skip-hidden.patch`（仓库 patches/ 下）
-- 关键修复：
-  - 必须生成 `zh_CN.UTF-8` locale，否则 MAA 中文资源文件名乱码、`AsstLoadResource ret: false`
-  - patched winex11 后“公告”窗口可成为鼠标目标
-  - **鼠标修复关键**：MAA 配置 `config/gui.new.json` 中 `Gui.UseNotify=false`，关闭桌面通知/ToastWindow 后，主窗口鼠标可正常点击
-  - **可用全局热键启动任务**：`DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l` 触发 LinkStart（备份方案）
-- MAA 位置：`/home/headless/MaaAssistantArknights/MAA.exe`
-- 启动脚本：`/home/headless/bin/maa.sh`；桌面快捷方式：`/home/headless/Desktop/MAA.desktop`
-- 详细步骤：仓库 `docs/SETUP_FROM_ZERO.md`
+- 最新提交：`ac68680`（Fix MAA mouse input by disabling desktop notifications）
+- 关键文档：`docs/SETUP_FROM_ZERO.md`、`docs/KEY_INFO.md`
