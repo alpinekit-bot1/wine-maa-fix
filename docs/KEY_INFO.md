@@ -5,7 +5,7 @@
 - 镜像：`maa-desktop:v2`，`/opt/maa-desktop/docker-compose.yml` 已改用该镜像。
 - VNC/noVNC 正常，端口 `6080`。
 - **鼠标输入已修复**：关闭 MAA 桌面通知后，主窗口可正常点击。
-- GitHub 已更新到 `ac68680`。
+- GitHub 已更新到 `2cb7193`，仓库当前无泄露；但 VNC 密码曾被旧历史公开过，**建议尽快轮换**。
 
 ## 访问方式
 - 宿主机命令：`./sshx.sh "<命令>"`（自动使用 ed25519 key + askpass）
@@ -15,6 +15,16 @@
 - noVNC：`http://<your-host>:6080/vnc.html`
 - VNC 密码：`<your-vnc-password>`
 - 桌面用户：`headless`（uid/gid 1001），家目录持久化在 `/opt/maa-desktop/config`
+
+## 安全记录（重要）
+- GitHub 仓库 `alpinekit-bot1/wine-maa-fix` 是 **public**。
+- 之前旧提交历史曾包含公网 IP 和 VNC 密码，现已通过 `git filter-branch` 重写历史并强制推送清除。
+- 当前远程文件和历史扫描均无真实密码/IP。
+- 但 public 仓库旧历史曾短暂公开，**VNC 密码视为已泄露**，压缩后第一件事建议：
+  - 修改 `/opt/maa-desktop/.env` 的 `VNC_PW`
+  - 重建容器 `docker compose up -d --force-recreate`
+  - 考虑把 GitHub 仓库设为 private
+- 仓库内未发现 GitHub Token、SSH 密钥或口令。
 
 ## 关键环境
 - 容器系统：Ubuntu 24.04 (noble)
@@ -75,6 +85,7 @@ docker exec maa-desktop tail -n 50 /home/headless/MaaAssistantArknights/debug/gu
 ```
 
 ## 下一步
+- **立即轮换 VNC 密码**（因旧历史曾公开）。
 - 配置 MAA 的 ADB/模拟器连接（例如 `127.0.0.1:5555` 或备用机地址）。
 - 可做开机自启：把 `MAA.desktop` 放进 `.config/autostart/`，并启动后自动发热键。
 - 旧镜像 `maa-desktop:v1`（6.4GB）可删除释放空间。
@@ -83,5 +94,5 @@ docker exec maa-desktop tail -n 50 /home/headless/MaaAssistantArknights/debug/gu
 ## GitHub 仓库
 - 仓库：`alpinekit-bot1/wine-maa-fix`
 - 地址：https://github.com/alpinekit-bot1/wine-maa-fix
-- 最新提交：`ac68680`（Fix MAA mouse input by disabling desktop notifications）
+- 最新提交：`2cb7193`（历史已清洗，文档可复现）
 - 关键文档：`docs/SETUP_FROM_ZERO.md`、`docs/KEY_INFO.md`
