@@ -39,6 +39,12 @@ volumes:
   - /opt/maa-desktop/config:/home/headless
 ```
 
+还需要创建 `/opt/maa-desktop/.env`：
+
+```bash
+echo 'VNC_PW=<your-vnc-password>' > /opt/maa-desktop/.env
+```
+
 ## 2. WineHQ Staging 11.15
 
 容器系统是 **Ubuntu 24.04 (noble)**。
@@ -87,6 +93,10 @@ runuser -u headless -- env WINEPREFIX=/home/headless/.wine-maa WINEDEBUG=-all DI
 ## 4. 部署 MAA v6.16.8
 
 ```bash
+# 下载（如尚未下载）
+wget -O /opt/maa-desktop/MAA-v6.16.8-win-x64.zip \
+  https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/v6.16.8/MAA-v6.16.8-win-x64.zip
+
 docker cp /opt/maa-desktop/MAA-v6.16.8-win-x64.zip maa-desktop:/home/headless/Downloads/
 runuser -u headless -- unzip -q /home/headless/Downloads/MAA-v6.16.8-win-x64.zip \
   -d /home/headless/MaaAssistantArknights
@@ -176,11 +186,38 @@ DISPLAY=:1 xdotool key --clearmodifiers ctrl+shift+alt+l
 
 ## 7. 桌面快捷方式
 
-已创建：
+启动脚本内容（`/home/headless/bin/maa.sh`）：
 
-- `/home/headless/bin/maa.sh`：Wine 启动脚本
-- `/home/headless/Desktop/MAA.desktop`：桌面快捷方式
-- 可选：放到 `/home/headless/.config/autostart/` 可实现开机自启
+```bash
+#!/bin/bash
+export WINEPREFIX=/home/headless/.wine-maa
+export WINEDEBUG=-all
+export DISPLAY="${DISPLAY:-:1}"
+cd /home/headless/MaaAssistantArknights || exit 1
+exec wine MAA.exe
+```
+
+桌面快捷方式（`/home/headless/Desktop/MAA.desktop`）：
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=MAA 明日方舟助手
+Comment=Launch MAA under Wine
+Exec=/home/headless/bin/maa.sh
+Terminal=false
+Categories=Game;Utility;
+StartupNotify=false
+```
+
+创建后：
+
+```bash
+chmod +x /home/headless/bin/maa.sh /home/headless/Desktop/MAA.desktop
+chown -R headless:headless /home/headless/bin /home/headless/Desktop/MAA.desktop
+```
+
+可选：放到 `/home/headless/.config/autostart/` 可实现开机自启。
 
 ## 8. 镜像固化
 
@@ -191,5 +228,8 @@ docker commit maa-desktop maa-desktop:v2
 # compose: image: maa-desktop:v2
 docker compose up -d --force-recreate
 ```
+
+注意：`maa-desktop:v2` 是当前宿主机上的本地镜像，不会自动出现在新机器。
+如果换新宿主机，请按本文步骤从零构建，或自行 `docker save/load` 迁移镜像。
 
 下次重建容器时 Wine、补丁、MAA 和快捷方式都会保留。
